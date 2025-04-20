@@ -52,10 +52,19 @@ st.sidebar.title("📂 Data Loader")
 data_path = "data"
 st.sidebar.write(f"Using data from: `{data_path}/`")
 
-# Load documents manually
 documents = load_documents(data_path)
+
+# Show loaded files
+if not documents:
+    st.warning("⚠️ No supported files found in `/data`.")
+else:
+    st.sidebar.markdown("### ✅ Loaded Files")
+    for doc in documents:
+        st.sidebar.write(f"- {doc.metadata.get('filename', 'unknown')}")
+
+# Build index
 index = VectorStoreIndex.from_documents(documents, service_context=service_context)
-query_engine = index.as_query_engine()
+query_engine = index.as_query_engine(similarity_top_k=1)
 
 # Streamlit UI
 st.title("🧭 RAG Explorer")
@@ -65,5 +74,17 @@ query = st.text_input("💬 Enter your question")
 if query:
     with st.spinner("Thinking..."):
         response = query_engine.query(query)
+
+        # Show context
+        st.markdown("### 📄 Retrieved Context")
+        if hasattr(response, "source_nodes") and response.source_nodes:
+            for node in response.source_nodes:
+                text = node.node.text.strip()
+                st.markdown(f"```text\n{text[:500]}\n...```")
+        else:
+            st.info("No source nodes available")
+
+        # Show answer
         st.markdown("### 🧠 Answer")
         st.write(response.response)
+
